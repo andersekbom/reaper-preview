@@ -14,7 +14,7 @@
 
 - [x] **T5: RENDER_CFG format blobs** — Add format constants for MP3 and WAV as base64-encoded `RENDER_CFG` blobs to `rpp_modify.py`. The `<RENDER_CFG>` block uses a 4-byte reversed FourCC (`evaw` for WAV, `l3pm` for MP3) followed by format-specific settings. The Reaper SDK allows using just the 4-byte FourCC for default settings. Update `prepare_rpp_for_preview()` to accept a format parameter and set the `<RENDER_CFG>` block accordingly. Test: the constants are non-empty strings; a modified RPP contains the correct blob for the requested format.
 
-- [ ] **T6: Render invocation (`render.py`)** — Implement `render_project(rpp_path, reaper_bin, timeout) -> Path` that calls `reaper -renderproject` as a subprocess, waits for completion, and returns the output audio path. Handle: process timeout, non-zero exit code, missing output file. Write a test that mocks `subprocess.run` and verifies the correct command is constructed. Integration test (manual): render a real project and verify the output file exists and is a valid audio file.
+- [x] **T6: Render invocation (`render.py`)** — Implement `render_project(rpp_path, reaper_bin, timeout) -> Path` that calls `reaper -renderproject` as a subprocess, waits for completion, and returns the output audio path. Handle: process timeout, non-zero exit code, missing output file. Write a test that mocks `subprocess.run` and verifies the correct command is constructed. Integration test (manual): render a real project and verify the output file exists and is a valid audio file.
 
 ## Phase 3: CLI and Integration
 
