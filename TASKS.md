@@ -18,7 +18,7 @@
 
 ## Phase 3: CLI and Integration
 
-- [ ] **T7: CLI entry point (`cli.py`)** — Implement the CLI using `click` with options: `--input-dir`, `--output-dir`, `--format`, `--duration`, `--start`, `--reaper-bin`, `--dry-run`. Dry-run mode should list discovered projects without rendering. Test: invoke CLI with `--dry-run` on a temp directory with fake `.rpp` files; verify output lists them. Verify `--help` works.
+- [x] **T7: CLI entry point (`cli.py`)** — Implement the CLI using `click` with options: `--input-dir`, `--output-dir`, `--format`, `--duration`, `--start`, `--reaper-bin`, `--dry-run`. Dry-run mode should list discovered projects without rendering. Test: invoke CLI with `--dry-run` on a temp directory with fake `.rpp` files; verify output lists them. Verify `--help` works.
 
 - [ ] **T8: End-to-end pipeline** — Wire everything together: discover → modify → render → report. Add progress output (project N of M). Handle errors per-project (log and continue, don't abort the batch). Test: run with `--dry-run` on a real project directory and verify the output. Manual test: render a real project end-to-end.
 
