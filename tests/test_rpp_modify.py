@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-from reaper_preview.rpp_modify import prepare_rpp_for_preview
+from reaper_preview.rpp_modify import (
+    RENDER_CFG_MP3,
+    RENDER_CFG_WAV,
+    prepare_rpp_for_preview,
+)
 
 MINIMAL_RPP = """\
 <REAPER_PROJECT 0.1 "6.0"
@@ -10,6 +14,9 @@ MINIMAL_RPP = """\
   RENDER_PATTERN ""
   RENDER_FMT 0 2 0
   RENDER_RANGE 1 0 0 18 1000
+  <RENDER_CFG
+    ZXZhdxgAAQ==
+  >
 >
 """
 
@@ -124,6 +131,79 @@ class TestPrepareRppForPreview:
         assert 'RENDER_PATTERN "bare-preview"' in content
         assert "RENDER_RANGE 0 0.0 30.0" in content
 
+    def test_sets_mp3_render_cfg(self, tmp_path):
+        rpp_file = tmp_path / "song.rpp"
+        rpp_file.write_text(MINIMAL_RPP)
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+
+        result = prepare_rpp_for_preview(
+            rpp_path=rpp_file,
+            output_dir=output_dir,
+            filename="song-preview",
+            start=0.0,
+            end=30.0,
+            audio_format="mp3",
+        )
+        content = _read_output(result)
+        assert f"    {RENDER_CFG_MP3}" in content
+        assert "<RENDER_CFG" in content
+
+    def test_sets_wav_render_cfg(self, tmp_path):
+        rpp_file = tmp_path / "song.rpp"
+        rpp_file.write_text(MINIMAL_RPP)
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+
+        result = prepare_rpp_for_preview(
+            rpp_path=rpp_file,
+            output_dir=output_dir,
+            filename="song-preview",
+            start=0.0,
+            end=30.0,
+            audio_format="wav",
+        )
+        content = _read_output(result)
+        assert f"    {RENDER_CFG_WAV}" in content
+
+    def test_default_format_is_mp3(self, tmp_path):
+        rpp_file = tmp_path / "song.rpp"
+        rpp_file.write_text(MINIMAL_RPP)
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+
+        result = prepare_rpp_for_preview(
+            rpp_path=rpp_file,
+            output_dir=output_dir,
+            filename="song-preview",
+            start=0.0,
+            end=30.0,
+        )
+        content = _read_output(result)
+        assert f"    {RENDER_CFG_MP3}" in content
+
+    def test_render_cfg_constants_are_nonempty(self):
+        assert len(RENDER_CFG_WAV) > 0
+        assert len(RENDER_CFG_MP3) > 0
+
+    def test_adds_render_cfg_to_bare_rpp(self, tmp_path):
+        rpp_file = tmp_path / "bare.rpp"
+        rpp_file.write_text(BARE_RPP)
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+
+        result = prepare_rpp_for_preview(
+            rpp_path=rpp_file,
+            output_dir=output_dir,
+            filename="bare-preview",
+            start=0.0,
+            end=30.0,
+            audio_format="wav",
+        )
+        content = _read_output(result)
+        assert "<RENDER_CFG" in content
+        assert f"    {RENDER_CFG_WAV}" in content
+
     def test_with_real_rpp_file(self, tmp_path):
         """Test with the example.rpp if it exists."""
         example = Path(__file__).parent.parent / "example.rpp"
@@ -138,8 +218,10 @@ class TestPrepareRppForPreview:
             filename="example-preview",
             start=0.0,
             end=30.0,
+            audio_format="mp3",
         )
         content = _read_output(result)
         assert f'RENDER_FILE "{output_dir}"' in content
         assert 'RENDER_PATTERN "example-preview"' in content
         assert "RENDER_RANGE 0 0.0 30.0" in content
+        assert f"    {RENDER_CFG_MP3}" in content

@@ -48,13 +48,13 @@ reaper-preview/
 - Return a list of `(project_name, rpp_path)` tuples
 
 #### `rpp_modify.py`
-- Parse the RPP file using the [`rpp`](https://github.com/Perlence/rpp) Python library (or plain text manipulation as fallback — the format is simple enough)
+
+- Modify the RPP file using plain text/regex manipulation (the `rpp` library cannot reliably parse real Reaper 7 files)
 - Create a modified copy of the RPP with these render settings overridden:
   - `RENDER_FILE` — set to the desired output directory
   - `RENDER_PATTERN` — set to a filename based on the project name
-  - `RENDER_FMT` / `RENDER_FORMAT` — set to MP3 (or WAV)
-  - `RENDER_BOUNDSFLAG 0` — use custom time bounds
-  - `RENDER_STARTPOS` / `RENDER_ENDPOS` — set to the desired time range (e.g., 0 to 30 seconds, or a configurable range)
+  - `<RENDER_CFG>` — base64 block with format-specific blob (WAV or MP3)
+  - `RENDER_RANGE` — combined bounds flag + start/end times (replaces older `RENDER_BOUNDSFLAG`/`RENDER_STARTPOS`/`RENDER_ENDPOS`)
 - Write the modified RPP to a temp file (never modify the original)
 
 #### `render.py`
@@ -78,22 +78,31 @@ reaper-preview/
 
 ## Key RPP Render Settings
 
-These are the text fields inside the RPP file that control rendering behavior:
+These are the text fields inside the RPP file that control rendering behavior (verified against Reaper 7 RPP files):
 
 | Field | Purpose | Value for previews |
 |---|---|---|
 | `RENDER_FILE` | Output directory | Absolute path to output dir |
 | `RENDER_PATTERN` | Output filename pattern | `"$project-preview"` |
-| `RENDER_FMT` | Audio format config (binary/base64) | Format-specific blob for MP3/WAV |
-| `RENDER_BOUNDSFLAG` | What time range to render | `0` (custom time bounds) |
-| `RENDER_STARTPOS` | Start time in seconds | `0.0` (or user-specified) |
-| `RENDER_ENDPOS` | End time in seconds | `30.0` (or user-specified) |
+| `RENDER_FMT` | Audio format flags (simple integers) | `0 2 0` (default) |
+| `<RENDER_CFG>` | Audio format config (base64 block) | Format-specific blob for MP3/WAV |
+| `RENDER_RANGE` | Bounds flag + start + end + tail settings | `0 0.0 30.0 18 1000` |
 
-The `RENDER_FMT` value is a base64-encoded binary blob specific to each format. The simplest approach is to:
-1. Create a test project in Reaper
-2. Set up the desired render settings (e.g., MP3 128kbps)
-3. Save the project and extract the `RENDER_FMT` value from the saved `.rpp` file
-4. Hardcode that value as a constant for MP3 and WAV presets
+**Note:** Earlier Reaper versions used separate `RENDER_BOUNDSFLAG`, `RENDER_STARTPOS`, and `RENDER_ENDPOS` fields. Modern Reaper 7 combines these into a single `RENDER_RANGE` line where the first value is the bounds flag (0 = custom time bounds), followed by start time, end time, and tail settings.
+
+### RENDER_CFG format
+
+The `<RENDER_CFG>` block contains a base64-encoded binary blob. The first 4 bytes are a reversed FourCC identifier:
+
+- `evaw` — WAV format ("wave" reversed)
+- `l3pm` — MP3 format ("mp3l" reversed, referencing LAME)
+
+The remaining bytes encode format-specific settings (bit depth, sample rate, bitrate, etc.). The Reaper SDK allows passing just the 4-byte FourCC to use default settings for that format, so the simplest base64 values are:
+
+- WAV (defaults): `ZXZhdw==`
+- MP3 (defaults): `bDNwbQ==`
+
+For specific settings (e.g., WAV 24-bit), the blob includes additional bytes — extract these by configuring render settings in Reaper's GUI and copying the `RENDER_CFG` value from the saved `.rpp` file.
 
 ## Dependencies
 
