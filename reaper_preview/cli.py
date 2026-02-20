@@ -1,10 +1,13 @@
 """CLI entry point for reaper-preview."""
 
+import os
 from pathlib import Path
 
 import click
 
 from reaper_preview.discover import discover_projects
+from reaper_preview.render import RenderError, render_project
+from reaper_preview.rpp_modify import prepare_rpp_for_preview
 
 
 @click.command()
@@ -37,8 +40,67 @@ def main(input_dir, output_dir, audio_format, duration, start, reaper_bin, dry_r
         click.echo("\nDry run mode - no rendering performed.")
         return
 
-    # Actual rendering will be implemented in T8
-    click.echo("\nRendering not yet implemented (T8).")
+    # Create output directory
+    output_path.mkdir(parents=True, exist_ok=True)
+    click.echo(f"\nOutput directory: {output_path}")
+
+    # Auto-detect Reaper binary if not specified
+    if reaper_bin is None:
+        reaper_bin = "reaper"  # T9 will implement auto-detection
+        click.echo("Using 'reaper' from PATH (auto-detection not yet implemented)")
+
+    # Render each project
+    click.echo(f"\nRendering {len(projects)} project{'s' if len(projects) != 1 else ''}...\n")
+    successful = 0
+    failed = 0
+
+    for idx, project in enumerate(projects, start=1):
+        click.echo(f"[{idx}/{len(projects)}] {project.name}...")
+
+        try:
+            # Prepare modified RPP
+            end_time = start + duration
+            temp_rpp = prepare_rpp_for_preview(
+                rpp_path=project.rpp_path,
+                output_dir=output_path,
+                filename=project.name,
+                start=start,
+                end=end_time,
+                audio_format=audio_format,
+            )
+
+            # Render
+            output_file = render_project(
+                rpp_path=temp_rpp,
+                output_dir=output_path,
+                filename=project.name,
+                audio_format=audio_format,
+                reaper_bin=reaper_bin,
+            )
+
+            # Clean up temp RPP
+            temp_rpp.unlink()
+
+            click.echo(f"  ✓ Rendered: {output_file.name}")
+            successful += 1
+
+        except RenderError as e:
+            click.echo(f"  ✗ Failed: {e}", err=True)
+            failed += 1
+            # Clean up temp RPP on error
+            try:
+                if temp_rpp and temp_rpp.exists():
+                    temp_rpp.unlink()
+            except Exception:
+                pass
+            continue
+        except Exception as e:
+            click.echo(f"  ✗ Unexpected error: {e}", err=True)
+            failed += 1
+            continue
+
+    # Summary
+    click.echo(f"\nCompleted: {successful} successful, {failed} failed")
 
 
 if __name__ == "__main__":
