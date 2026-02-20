@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reaper-preview"
+version = "0.1.0"
+description = "Batch-generate short audio previews from Reaper DAW projects"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "click>=8.0",
+    "rpp>=0.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+reaper-preview = "reaper_preview.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["reaper_preview*"]
