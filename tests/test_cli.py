@@ -118,12 +118,10 @@ class TestCLIIntegration:
             result = runner.invoke(
                 main,
                 [
-                    "--input-dir",
-                    str(tmp_path),
-                    "--output-dir",
-                    str(output_dir),
-                    "--format",
-                    "mp3",
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--format", "mp3",
+                    "--reaper-bin", "reaper",
                 ],
             )
 
@@ -141,7 +139,12 @@ class TestCLIIntegration:
         with patch("reaper_preview.cli.render_project") as mock_render:
             mock_render.return_value = output_dir / "song.mp3"
             result = runner.invoke(
-                main, ["--input-dir", str(tmp_path), "--output-dir", str(output_dir)]
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
             )
 
         assert result.exit_code == 0
@@ -169,7 +172,12 @@ class TestCLIIntegration:
             mock_render.side_effect = fake_render
 
             result = runner.invoke(
-                main, ["--input-dir", str(tmp_path), "--output-dir", str(output_dir)]
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
             )
 
         # Should not abort on error
@@ -189,7 +197,12 @@ class TestCLIIntegration:
         with patch("reaper_preview.cli.render_project") as mock_render:
             mock_render.return_value = output_dir / "song.mp3"
             result = runner.invoke(
-                main, ["--input-dir", str(tmp_path), "--output-dir", str(output_dir)]
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
             )
 
         assert result.exit_code == 0
@@ -197,3 +210,99 @@ class TestCLIIntegration:
         assert "1/3" in result.output or "1 of 3" in result.output
         assert "2/3" in result.output or "2 of 3" in result.output
         assert "3/3" in result.output or "3 of 3" in result.output
+
+    def test_skips_existing_preview_newer_than_rpp(self, tmp_path):
+        """If preview exists and is newer than .rpp, skip rendering."""
+        import os
+        import time
+
+        rpp_file = tmp_path / "song.rpp"
+        rpp_file.write_text("<REAPER_PROJECT>")
+
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+        preview = output_dir / "song.mp3"
+        preview.write_text("existing preview")
+
+        # Make preview newer than RPP
+        old_time = time.time() - 100
+        os.utime(rpp_file, (old_time, old_time))
+
+        runner = CliRunner()
+        with patch("reaper_preview.cli.render_project") as mock_render:
+            result = runner.invoke(
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
+            )
+
+        # render_project should NOT have been called
+        mock_render.assert_not_called()
+        assert "Skipping" in result.output or "skipping" in result.output
+
+    def test_force_rerenders_existing_preview(self, tmp_path):
+        """With --force, re-render even if preview exists."""
+        import os
+        import time
+
+        rpp_file = tmp_path / "song.rpp"
+        rpp_file.write_text("<REAPER_PROJECT>")
+
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+        preview = output_dir / "song.mp3"
+        preview.write_text("existing preview")
+
+        # Make preview newer than RPP
+        old_time = time.time() - 100
+        os.utime(rpp_file, (old_time, old_time))
+
+        runner = CliRunner()
+        with patch("reaper_preview.cli.render_project") as mock_render:
+            mock_render.return_value = preview
+            result = runner.invoke(
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                    "--force",
+                ],
+            )
+
+        # render_project SHOULD have been called
+        mock_render.assert_called_once()
+
+    def test_renders_when_rpp_is_newer_than_preview(self, tmp_path):
+        """If .rpp is newer than preview, re-render."""
+        import os
+        import time
+
+        rpp_file = tmp_path / "song.rpp"
+        rpp_file.write_text("<REAPER_PROJECT>")
+
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+        preview = output_dir / "song.mp3"
+        preview.write_text("old preview")
+
+        # Make preview older than RPP
+        old_time = time.time() - 100
+        os.utime(preview, (old_time, old_time))
+
+        runner = CliRunner()
+        with patch("reaper_preview.cli.render_project") as mock_render:
+            mock_render.return_value = preview
+            result = runner.invoke(
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
+            )
+
+        mock_render.assert_called_once()

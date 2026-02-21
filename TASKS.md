@@ -24,8 +24,8 @@
 
 ## Phase 4: Polish
 
-- [ ] **T9: Reaper binary auto-detection** — Detect the Reaper executable path on Linux (`which reaper`, common install paths), macOS (`/Applications/REAPER.app/...`), and Windows (`Program Files`). Fall back to `--reaper-bin` if auto-detection fails. Test: mock `shutil.which` and platform, verify correct paths returned.
+- [x] **T9: Reaper binary auto-detection** — Detect the Reaper executable path on Linux (`which reaper`, common install paths), macOS (`/Applications/REAPER.app/...`), and Windows (`Program Files`). Fall back to `--reaper-bin` if auto-detection fails. Test: mock `shutil.which` and platform, verify correct paths returned.
 
-- [ ] **T10: Skip already-rendered previews** — If a preview file exists and is newer than the source `.rpp`, skip rendering. Add a `--force` flag to override. Test: create a fake preview file newer than the RPP, verify it's skipped; with `--force`, verify it's re-rendered.
+- [x] **T10: Skip already-rendered previews** — If a preview file exists and is newer than the source `.rpp`, skip rendering. Add a `--force` flag to override. Test: create a fake preview file newer than the RPP, verify it's skipped; with `--force`, verify it's re-rendered.
 
-- [ ] **T11: Documentation and release prep** — Flesh out `README.md` with installation instructions, usage examples, and limitations. Verify `pip install .` from a clean venv works. Tag as v0.1.0.
+- [x] **T11: Documentation and release prep** — Flesh out `README.md` with installation instructions, usage examples, and limitations. Verify `pip install .` from a clean venv works. Tag as v0.1.0.

@@ -1,6 +1,7 @@
 """CLI entry point for reaper-preview."""
 
-import os
+import shutil
+import sys
 from pathlib import Path
 
 import click
@@ -8,6 +9,43 @@ import click
 from reaper_preview.discover import discover_projects
 from reaper_preview.render import RenderError, render_project
 from reaper_preview.rpp_modify import prepare_rpp_for_preview
+
+# Common install locations per platform
+_LINUX_PATHS = [
+    "/opt/REAPER/reaper",
+    "/usr/local/bin/reaper",
+]
+_MACOS_PATHS = [
+    "/Applications/REAPER.app/Contents/MacOS/REAPER",
+]
+_WINDOWS_PATHS = [
+    "C:\\Program Files\\REAPER (x64)\\reaper.exe",
+    "C:\\Program Files\\REAPER\\reaper.exe",
+]
+
+
+def find_reaper_bin() -> str | None:
+    """Auto-detect the Reaper executable.
+
+    Checks PATH first via shutil.which, then common install locations.
+    Returns the path string or None if not found.
+    """
+    found = shutil.which("reaper")
+    if found:
+        return found
+
+    if sys.platform == "darwin":
+        candidates = _MACOS_PATHS
+    elif sys.platform == "win32":
+        candidates = _WINDOWS_PATHS
+    else:
+        candidates = _LINUX_PATHS
+
+    for path in candidates:
+        if Path(path).exists():
+            return path
+
+    return None
 
 
 @click.command()
@@ -46,16 +84,28 @@ def main(input_dir, output_dir, audio_format, duration, start, reaper_bin, dry_r
 
     # Auto-detect Reaper binary if not specified
     if reaper_bin is None:
-        reaper_bin = "reaper"  # T9 will implement auto-detection
-        click.echo("Using 'reaper' from PATH (auto-detection not yet implemented)")
+        reaper_bin = find_reaper_bin()
+        if reaper_bin is None:
+            click.echo("Error: Could not find Reaper. Use --reaper-bin to specify the path.", err=True)
+            raise SystemExit(1)
+        click.echo(f"Using Reaper: {reaper_bin}")
 
     # Render each project
     click.echo(f"\nRendering {len(projects)} project{'s' if len(projects) != 1 else ''}...\n")
     successful = 0
     failed = 0
+    skipped = 0
 
     for idx, project in enumerate(projects, start=1):
         click.echo(f"[{idx}/{len(projects)}] {project.name}...")
+
+        # Check if preview already exists and is up to date
+        preview_path = output_path / f"{project.name}.{audio_format}"
+        if not force and preview_path.exists():
+            if preview_path.stat().st_mtime > project.rpp_path.stat().st_mtime:
+                click.echo(f"  Skipping (preview is up to date)")
+                skipped += 1
+                continue
 
         try:
             # Prepare modified RPP
@@ -100,7 +150,12 @@ def main(input_dir, output_dir, audio_format, duration, start, reaper_bin, dry_r
             continue
 
     # Summary
-    click.echo(f"\nCompleted: {successful} successful, {failed} failed")
+    parts = [f"{successful} successful"]
+    if skipped:
+        parts.append(f"{skipped} skipped")
+    if failed:
+        parts.append(f"{failed} failed")
+    click.echo(f"\nCompleted: {', '.join(parts)}")
 
 
 if __name__ == "__main__":
