@@ -7,9 +7,23 @@ Scans a directory tree for `.rpp` project files, temporarily modifies their rend
 ## Requirements
 
 - Python 3.10+
-- [Reaper](https://www.reaper.fm/) installed and accessible from the command line
+- [Reaper](https://www.reaper.fm/) installed
 
 ## Installation
+
+### Windows
+
+Open **Command Prompt** or **PowerShell**:
+
+```powershell
+git clone https://github.com/andersekbom/reaper-preview.git
+cd reaper-preview
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e .
+```
+
+### macOS / Linux
 
 ```bash
 git clone https://github.com/andersekbom/reaper-preview.git
@@ -20,6 +34,29 @@ pip install -e .
 ```
 
 ## Usage
+
+### Windows
+
+```powershell
+# Generate 30-second MP3 previews for all projects under a directory
+reaper-preview --input-dir "C:\Users\you\Music\Reaper" --output-dir "C:\Users\you\Music\Reaper\previews"
+
+# 60-second WAV previews starting at the 10-second mark
+reaper-preview --input-dir "C:\Users\you\Music\Reaper" --duration 60 --start 10 --format wav
+
+# Dry run — list discovered projects without rendering
+reaper-preview --input-dir "C:\Users\you\Music\Reaper" --dry-run
+
+# Force re-render even if previews already exist
+reaper-preview --input-dir "C:\Users\you\Music\Reaper" --force
+
+# Specify Reaper binary path (auto-detected by default)
+reaper-preview --input-dir "C:\Users\you\Music\Reaper" --reaper-bin "C:\Program Files\REAPER (x64)\reaper.exe"
+```
+
+Reaper is auto-detected at `C:\Program Files\REAPER (x64)\reaper.exe` and `C:\Program Files\REAPER\reaper.exe`. Use `--reaper-bin` if your installation is elsewhere.
+
+### macOS / Linux
 
 ```bash
 # Generate 30-second MP3 previews for all projects under a directory

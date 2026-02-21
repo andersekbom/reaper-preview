@@ -42,6 +42,29 @@ def _replace_or_insert_block(text: str, tag: str, block: str) -> str:
     return replaced.replace("\n>", f"\n{block}\n>", 1)
 
 
+def _resolve_relative_file_paths(text: str, rpp_dir: Path) -> str:
+    """Replace relative FILE paths in the RPP text with absolute paths.
+
+    When a temp RPP is written to a different directory, Reaper resolves
+    relative audio file paths from the temp file's location and fails to
+    find them. Converting them to absolute paths fixes this.
+
+    Only FILE entries are affected; RENDER_FILE is left untouched.
+    """
+    def _resolve(match: re.Match) -> str:
+        path_str = match.group(1)
+        if not path_str:
+            return match.group(0)
+        p = Path(path_str)
+        if not p.is_absolute():
+            p = (rpp_dir / path_str).resolve()
+        return f'FILE "{str(p).replace(chr(92), "/")}"'
+
+    # \bFILE matches FILE as a whole word, which excludes RENDER_FILE
+    # (the _ before F is a word character so no word boundary exists there).
+    return re.sub(r'\bFILE "([^"]*)"', _resolve, text)
+
+
 def prepare_rpp_for_preview(
     rpp_path: Path,
     output_dir: Path,
@@ -53,14 +76,19 @@ def prepare_rpp_for_preview(
     """Create a modified copy of an RPP file with render settings for preview.
 
     Sets the output directory, filename pattern, time bounds, and audio format.
+    Relative audio file paths are resolved to absolute paths so Reaper can
+    locate them when loading the temporary file from a different directory.
     The original file is never modified.
 
     Returns the path to the temporary modified RPP file.
     """
     text = rpp_path.read_text()
+    text = _resolve_relative_file_paths(text, rpp_path.parent)
 
-    # RPP files use forward slashes for paths, even on Windows
-    output_dir_str = str(output_dir).replace("\\", "/")
+    # RPP files use forward slashes for paths, even on Windows.
+    # Resolve to an absolute path so Reaper can locate the output directory
+    # when loading the temp RPP from the system temp directory.
+    output_dir_str = str(Path(output_dir).resolve()).replace("\\", "/")
     text = _replace_or_insert(text, "RENDER_FILE", f'  RENDER_FILE "{output_dir_str}"')
     text = _replace_or_insert(text, "RENDER_PATTERN", f'  RENDER_PATTERN "{filename}"')
     text = _replace_or_insert(text, "RENDER_RANGE", f"  RENDER_RANGE 0 {start} {end} 18 1000")
