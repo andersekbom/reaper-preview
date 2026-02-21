@@ -59,7 +59,9 @@ def prepare_rpp_for_preview(
     """
     text = rpp_path.read_text()
 
-    text = _replace_or_insert(text, "RENDER_FILE", f'  RENDER_FILE "{output_dir}"')
+    # RPP files use forward slashes for paths, even on Windows
+    output_dir_str = str(output_dir).replace("\\", "/")
+    text = _replace_or_insert(text, "RENDER_FILE", f'  RENDER_FILE "{output_dir_str}"')
     text = _replace_or_insert(text, "RENDER_PATTERN", f'  RENDER_PATTERN "{filename}"')
     text = _replace_or_insert(text, "RENDER_RANGE", f"  RENDER_RANGE 0 {start} {end} 18 1000")
 

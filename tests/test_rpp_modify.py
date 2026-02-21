@@ -204,6 +204,37 @@ class TestPrepareRppForPreview:
         assert "<RENDER_CFG" in content
         assert f"    {RENDER_CFG_WAV}" in content
 
+    def test_render_file_uses_forward_slashes(self, tmp_path):
+        """RENDER_FILE path must use forward slashes even on Windows."""
+        rpp_file = tmp_path / "song.rpp"
+        rpp_file.write_text(MINIMAL_RPP)
+        output_dir = tmp_path / "previews"
+        output_dir.mkdir()
+
+        # Wrap output_dir so str() returns backslashes, simulating Windows
+        class FakeWindowsPath:
+            def __init__(self, real_path):
+                self._real = real_path
+
+            def __str__(self):
+                return str(self._real).replace("/", "\\")
+
+            def __fspath__(self):
+                return str(self)
+
+        result = prepare_rpp_for_preview(
+            rpp_path=rpp_file,
+            output_dir=FakeWindowsPath(output_dir),
+            filename="song-preview",
+            start=0.0,
+            end=30.0,
+        )
+        content = _read_output(result)
+        for line in content.splitlines():
+            if "RENDER_FILE" in line:
+                assert "\\" not in line, f"RENDER_FILE contains backslashes: {line}"
+                break
+
     def test_with_real_rpp_file(self, tmp_path):
         """Test with the example.rpp if it exists."""
         example = Path(__file__).parent.parent / "example.rpp"

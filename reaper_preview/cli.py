@@ -107,6 +107,7 @@ def main(input_dir, output_dir, audio_format, duration, start, reaper_bin, dry_r
                 skipped += 1
                 continue
 
+        temp_rpp = None
         try:
             # Prepare modified RPP
             end_time = start + duration
@@ -128,26 +129,21 @@ def main(input_dir, output_dir, audio_format, duration, start, reaper_bin, dry_r
                 reaper_bin=reaper_bin,
             )
 
-            # Clean up temp RPP
-            temp_rpp.unlink()
-
             click.echo(f"  ✓ Rendered: {output_file.name}")
             successful += 1
 
         except RenderError as e:
             click.echo(f"  ✗ Failed: {e}", err=True)
             failed += 1
-            # Clean up temp RPP on error
-            try:
-                if temp_rpp and temp_rpp.exists():
-                    temp_rpp.unlink()
-            except Exception:
-                pass
-            continue
         except Exception as e:
             click.echo(f"  ✗ Unexpected error: {e}", err=True)
             failed += 1
-            continue
+        finally:
+            if temp_rpp is not None:
+                try:
+                    temp_rpp.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     # Summary
     parts = [f"{successful} successful"]

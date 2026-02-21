@@ -276,6 +276,91 @@ class TestCLIIntegration:
         # render_project SHOULD have been called
         mock_render.assert_called_once()
 
+    def test_cleans_up_temp_rpp_after_render(self, tmp_path):
+        """Temp RPP file should be cleaned up after rendering."""
+        (tmp_path / "song.rpp").write_text("<REAPER_PROJECT>")
+        output_dir = tmp_path / "previews"
+
+        temp_files_created = []
+
+        runner = CliRunner()
+        with patch("reaper_preview.cli.render_project") as mock_render, \
+             patch("reaper_preview.cli.prepare_rpp_for_preview") as mock_prepare:
+            # Track temp file creation
+            real_temp = tmp_path / "temp_song.rpp"
+            real_temp.write_text("temp")
+            mock_prepare.return_value = real_temp
+            temp_files_created.append(real_temp)
+
+            mock_render.return_value = output_dir / "song.mp3"
+
+            result = runner.invoke(
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
+            )
+
+        assert result.exit_code == 0
+        # Temp file should have been cleaned up
+        assert not real_temp.exists()
+
+    def test_cleans_up_temp_rpp_on_unexpected_error(self, tmp_path):
+        """Temp RPP file should be cleaned up on unexpected exceptions."""
+        (tmp_path / "song.rpp").write_text("<REAPER_PROJECT>")
+        output_dir = tmp_path / "previews"
+
+        runner = CliRunner()
+        with patch("reaper_preview.cli.render_project") as mock_render, \
+             patch("reaper_preview.cli.prepare_rpp_for_preview") as mock_prepare:
+            real_temp = tmp_path / "temp_song.rpp"
+            real_temp.write_text("temp")
+            mock_prepare.return_value = real_temp
+
+            mock_render.side_effect = RuntimeError("Unexpected failure")
+
+            result = runner.invoke(
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
+            )
+
+        assert result.exit_code == 0
+        # Temp file should have been cleaned up despite unexpected error
+        assert not real_temp.exists()
+
+    def test_cleans_up_temp_rpp_on_render_error(self, tmp_path):
+        """Temp RPP file should be cleaned up even when rendering fails."""
+        (tmp_path / "song.rpp").write_text("<REAPER_PROJECT>")
+        output_dir = tmp_path / "previews"
+
+        runner = CliRunner()
+        with patch("reaper_preview.cli.render_project") as mock_render, \
+             patch("reaper_preview.cli.prepare_rpp_for_preview") as mock_prepare:
+            real_temp = tmp_path / "temp_song.rpp"
+            real_temp.write_text("temp")
+            mock_prepare.return_value = real_temp
+
+            mock_render.side_effect = RenderError("Simulated failure")
+
+            result = runner.invoke(
+                main,
+                [
+                    "--input-dir", str(tmp_path),
+                    "--output-dir", str(output_dir),
+                    "--reaper-bin", "reaper",
+                ],
+            )
+
+        assert result.exit_code == 0
+        # Temp file should have been cleaned up despite the error
+        assert not real_temp.exists()
+
     def test_renders_when_rpp_is_newer_than_preview(self, tmp_path):
         """If .rpp is newer than preview, re-render."""
         import os
